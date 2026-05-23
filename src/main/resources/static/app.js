@@ -1,8 +1,11 @@
 const state = {
     products: [],
-    cart: new Map()
+    cart: new Map(),
+    user: null
 };
 
+const authGate = document.querySelector("#authGate");
+const appShell = document.querySelector("#appShell");
 const productGrid = document.querySelector("#productGrid");
 const cartItems = document.querySelector("#cartItems");
 const cartCount = document.querySelector("#cartCount");
@@ -10,6 +13,11 @@ const cartTotal = document.querySelector("#cartTotal");
 const orderForm = document.querySelector("#orderForm");
 const message = document.querySelector("#message");
 const orderList = document.querySelector("#orderList");
+const userPanel = document.querySelector("#userPanel");
+const authMessage = document.querySelector("#authMessage");
+const profileForm = document.querySelector("#profileForm");
+const profileMessage = document.querySelector("#profileMessage");
+const logoutButton = document.querySelector("#logoutButton");
 
 document.querySelector("#refreshProducts").addEventListener("click", loadProducts);
 document.querySelector("#refreshOrders").addEventListener("click", loadOrders);
@@ -18,73 +26,132 @@ document.querySelector("#clearCart").addEventListener("click", () => {
     renderCart();
 });
 
-orderForm.addEventListener("submit", async (event) => {
+document.querySelector("#loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    clearMessage();
+    await submitAuthForm(event.currentTarget, "/api/auth/login", "Signed in successfully.");
+});
 
-    if (state.cart.size === 0) {
-        showMessage("请先添加商品到购物车", true);
-        return;
-    }
+document.querySelector("#registerForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await submitAuthForm(event.currentTarget, "/api/auth/register", "Account created and signed in.");
+});
 
-    const formData = new FormData(orderForm);
-    const payload = {
-        customerName: formData.get("customerName").trim(),
-        phone: formData.get("phone").trim(),
-        address: formData.get("address").trim(),
-        items: [...state.cart.entries()].map(([productId, quantity]) => ({ productId, quantity }))
-    };
+logoutButton.addEventListener("click", async () => {
+    await request("/api/auth/logout", { method: "POST" });
+    state.user = null;
+    state.products = [];
+    state.cart.clear();
+    renderAuth();
+    renderCart();
+    productGrid.innerHTML = "";
+    renderOrders([]);
+});
+
+profileForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    clearMessage(profileMessage);
 
     try {
-        const response = await fetch("/api/orders", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+        state.user = await request("/api/auth/profile", {
+            method: "PUT",
+            body: formToObject(profileForm)
         });
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.message || "提交订单失败");
-        }
-
-        state.cart.clear();
-        orderForm.reset();
-        showMessage(`订单 #${result.id} 创建成功，金额 ¥${money(result.totalAmount)}`);
-        await loadProducts();
-        await loadOrders();
+        renderAuth();
+        showMessage(profileMessage, "Shipping profile saved.");
     } catch (error) {
-        showMessage(error.message, true);
+        showMessage(profileMessage, error.message, true);
     }
 });
 
+orderForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    clearMessage(message);
+
+    if (!state.user.profileComplete) {
+        showMessage(message, "Please save your shipping profile first.", true);
+        return;
+    }
+
+    if (state.cart.size === 0) {
+        showMessage(message, "Please add products to the cart first.", true);
+        return;
+    }
+
+    try {
+        const result = await request("/api/orders", {
+            method: "POST",
+            body: {
+                items: [...state.cart.entries()].map(([productId, quantity]) => ({ productId, quantity }))
+            }
+        });
+
+        state.cart.clear();
+        showMessage(message, `Order #${result.id} created. Total ¥${money(result.totalAmount)}.`);
+        await loadProducts();
+        await loadOrders();
+    } catch (error) {
+        showMessage(message, error.message, true);
+    }
+});
+
+async function submitAuthForm(form, url, successText) {
+    clearMessage(authMessage);
+    try {
+        state.user = await request(url, {
+            method: "POST",
+            body: formToObject(form)
+        });
+        form.reset();
+        renderAuth();
+        showMessage(authMessage, successText);
+        await loadProducts();
+        await loadOrders();
+    } catch (error) {
+        showMessage(authMessage, error.message, true);
+    }
+}
+
+async function loadCurrentUser() {
+    state.user = await request("/api/auth/me");
+    renderAuth();
+    if (state.user) {
+        await loadProducts();
+        await loadOrders();
+    }
+}
+
 async function loadProducts() {
-    productGrid.innerHTML = "<p class=\"empty\">正在加载商品...</p>";
-    const response = await fetch("/api/products");
-    state.products = await response.json();
+    productGrid.innerHTML = "<p class=\"empty\">Loading products...</p>";
+    state.products = await request("/api/products");
     renderProducts();
     renderCart();
 }
 
 async function loadOrders() {
-    orderList.innerHTML = "<p class=\"empty\">正在加载订单...</p>";
-    const response = await fetch("/api/orders");
-    const orders = await response.json();
-    if (orders.length === 0) {
-        orderList.className = "orders empty";
-        orderList.textContent = "暂无订单";
+    orderList.innerHTML = "<p class=\"empty\">Loading orders...</p>";
+    const orders = await request("/api/orders");
+    renderOrders(orders);
+}
+
+function renderAuth() {
+    const loggedIn = Boolean(state.user);
+    authGate.classList.toggle("hidden", loggedIn);
+    appShell.classList.toggle("hidden", !loggedIn);
+
+    if (!loggedIn) {
+        profileForm.reset();
+        userPanel.innerHTML = "";
         return;
     }
 
-    orderList.className = "orders";
-    orderList.innerHTML = orders
-        .slice()
-        .reverse()
-        .map(order => `
-            <article class="order-row">
-                <strong>#${order.id} ${escapeHtml(order.customerName)}</strong>
-                <span>${order.items.length} 类商品 · ¥${money(order.totalAmount)}</span>
-            </article>
-        `)
-        .join("");
+    userPanel.innerHTML = `
+        <strong>${escapeHtml(state.user.username)}</strong>
+        <span>Account: ${escapeHtml(state.user.account)}</span>
+        <span>${state.user.profileComplete ? "Shipping profile complete" : "Shipping profile required"}</span>
+    `;
+    profileForm.elements.recipientName.value = state.user.recipientName || "";
+    profileForm.elements.phone.value = state.user.phone || "";
+    profileForm.elements.address.value = state.user.address || "";
 }
 
 function renderProducts() {
@@ -96,10 +163,10 @@ function renderProducts() {
                 <p>${escapeHtml(product.description)}</p>
                 <div class="product-meta">
                     <span class="price">¥${money(product.price)}</span>
-                    <span class="stock">库存 ${product.stock}</span>
+                    <span class="stock">Stock ${product.stock}</span>
                 </div>
                 <button type="button" onclick="addToCart(${product.id})" ${product.stock <= 0 ? "disabled" : ""}>
-                    加入购物车
+                    Add to Cart
                 </button>
             </div>
         </article>
@@ -116,12 +183,12 @@ function renderCart() {
 
     const totalQuantity = entries.reduce((sum, item) => sum + item.quantity, 0);
     const totalAmount = entries.reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0);
-    cartCount.textContent = `${totalQuantity} 件商品`;
+    cartCount.textContent = `${totalQuantity} items`;
     cartTotal.textContent = `¥${money(totalAmount)}`;
 
     if (entries.length === 0) {
         cartItems.className = "cart-items empty";
-        cartItems.textContent = "购物车为空";
+        cartItems.textContent = "Cart is empty";
         return;
     }
 
@@ -140,6 +207,23 @@ function renderCart() {
     `).join("");
 }
 
+function renderOrders(orders) {
+    if (!orders.length) {
+        orderList.className = "orders empty";
+        orderList.textContent = "No orders yet";
+        return;
+    }
+
+    orderList.className = "orders";
+    orderList.innerHTML = orders.map(order => `
+        <article class="order-row">
+            <strong>#${order.id} ${escapeHtml(order.customerName)}</strong>
+            <span>${order.items.length} product types · ¥${money(order.totalAmount)}</span>
+            <small>${escapeHtml(order.address)}</small>
+        </article>
+    `).join("");
+}
+
 function addToCart(productId) {
     changeQuantity(productId, 1);
 }
@@ -154,27 +238,49 @@ function changeQuantity(productId, delta) {
     } else if (product && nextQuantity <= product.stock) {
         state.cart.set(productId, nextQuantity);
     } else {
-        showMessage("不能超过当前库存", true);
+        showMessage(message, "Cannot exceed current stock.", true);
     }
 
     renderCart();
+}
+
+async function request(url, options = {}) {
+    const config = { ...options };
+    if (config.body && typeof config.body !== "string") {
+        config.headers = { "Content-Type": "application/json", ...(config.headers || {}) };
+        config.body = JSON.stringify(config.body);
+    }
+
+    const response = await fetch(url, config);
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : null;
+
+    if (!response.ok) {
+        throw new Error(data?.message || "Request failed.");
+    }
+
+    return data;
+}
+
+function formToObject(form) {
+    return Object.fromEntries([...new FormData(form).entries()].map(([key, value]) => [key, value.trim()]));
 }
 
 function money(value) {
     return Number(value).toFixed(2);
 }
 
-function showMessage(text, isError = false) {
-    message.textContent = text;
-    message.classList.toggle("error", isError);
+function showMessage(target, text, isError = false) {
+    target.textContent = text;
+    target.classList.toggle("error", isError);
 }
 
-function clearMessage() {
-    showMessage("");
+function clearMessage(target) {
+    showMessage(target, "");
 }
 
 function escapeHtml(value) {
-    return String(value)
+    return String(value ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
@@ -182,5 +288,4 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
-loadProducts();
-loadOrders();
+loadCurrentUser().catch(error => showMessage(authMessage, error.message, true));

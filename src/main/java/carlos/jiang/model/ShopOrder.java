@@ -6,6 +6,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -24,13 +25,17 @@ public class ShopOrder {
     private BigDecimal totalAmount;
     private LocalDateTime createdAt;
 
+    @ManyToOne(optional = false)
+    private AppUser user;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<OrderItem> items = new ArrayList<>();
 
     protected ShopOrder() {
     }
 
-    public ShopOrder(String customerName, String phone, String address) {
+    public ShopOrder(AppUser user, String customerName, String phone, String address) {
+        this.user = user;
         this.customerName = customerName;
         this.phone = phone;
         this.address = address;
@@ -66,6 +71,10 @@ public class ShopOrder {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public AppUser getUser() {
+        return user;
     }
 
     public List<OrderItem> getItems() {

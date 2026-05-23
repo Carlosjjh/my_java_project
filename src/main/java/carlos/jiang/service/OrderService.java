@@ -1,5 +1,6 @@
 package carlos.jiang.service;
 
+import carlos.jiang.model.AppUser;
 import carlos.jiang.model.OrderItem;
 import carlos.jiang.model.Product;
 import carlos.jiang.model.ShopOrder;
@@ -24,8 +25,12 @@ public class OrderService {
     }
 
     @Transactional
-    public ShopOrder createOrder(CreateOrderRequest request) {
-        ShopOrder order = new ShopOrder(request.customerName(), request.phone(), request.address());
+    public ShopOrder createOrder(CreateOrderRequest request, AppUser user) {
+        if (!user.hasShippingProfile()) {
+            throw new IllegalArgumentException("请先完善收货信息");
+        }
+
+        ShopOrder order = new ShopOrder(user, user.getRecipientName(), user.getPhone(), user.getAddress());
 
         for (CartItemRequest itemRequest : mergeSameProducts(request.items())) {
             Product product = productRepository.findById(itemRequest.productId())
@@ -38,8 +43,8 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<ShopOrder> findAllOrders() {
-        return orderRepository.findAll();
+    public List<ShopOrder> findOrdersByUser(AppUser user) {
+        return orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
     }
 
     private List<CartItemRequest> mergeSameProducts(List<CartItemRequest> items) {

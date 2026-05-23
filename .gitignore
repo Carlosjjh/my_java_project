@@ -1,6 +1,7 @@
 target/
 run.log
 *.log
+.env
 .idea/
 .vscode/
 .doc/

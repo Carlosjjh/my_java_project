@@ -7,6 +7,7 @@ import java.util.List;
 
 public record OrderResponse(
         Long id,
+        String account,
         String customerName,
         String phone,
         String address,
@@ -16,6 +17,7 @@ public record OrderResponse(
     public static OrderResponse from(ShopOrder order) {
         return new OrderResponse(
                 order.getId(),
+                order.getUser().getAccount(),
                 order.getCustomerName(),
                 order.getPhone(),
                 order.getAddress(),

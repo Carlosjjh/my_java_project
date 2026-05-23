@@ -15,6 +15,12 @@ public class ApiExceptionHandler {
         return Map.of("message", ex.getMessage());
     }
 
+    @ExceptionHandler(AuthenticationRequiredException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Map<String, String> handleAuthenticationRequired(AuthenticationRequiredException ex) {
+        return Map.of("message", ex.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleValidation(MethodArgumentNotValidException ex) {
