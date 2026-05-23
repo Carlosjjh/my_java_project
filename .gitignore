@@ -3,3 +3,4 @@ run.log
 *.log
 .idea/
 .vscode/
+.doc/
