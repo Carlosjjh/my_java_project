@@ -1,5 +1,6 @@
 package carlos.jiang.service;
 
+import carlos.jiang.kafka.OrderEventPublisher;
 import carlos.jiang.model.AppUser;
 import carlos.jiang.model.OrderItem;
 import carlos.jiang.model.Product;
@@ -18,10 +19,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderService {
     private final ProductRepository productRepository;
     private final ShopOrderRepository orderRepository;
+    private final OrderEventPublisher orderEventPublisher;
 
-    public OrderService(ProductRepository productRepository, ShopOrderRepository orderRepository) {
+    public OrderService(
+            ProductRepository productRepository,
+            ShopOrderRepository orderRepository,
+            OrderEventPublisher orderEventPublisher) {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
+        this.orderEventPublisher = orderEventPublisher;
     }
 
     @Transactional
@@ -39,7 +45,9 @@ public class OrderService {
             order.addItem(new OrderItem(product, itemRequest.quantity()));
         }
 
-        return orderRepository.save(order);
+        ShopOrder savedOrder = orderRepository.save(order);
+        orderEventPublisher.publishOrderCreated(savedOrder);
+        return savedOrder;
     }
 
     @Transactional(readOnly = true)

@@ -86,7 +86,7 @@ orderForm.addEventListener("submit", async (event) => {
         });
 
         state.cart.clear();
-        showMessage(message, `Order #${result.id} created. Total ¥${money(result.totalAmount)}.`);
+        showMessage(message, `Order #${result.id} created. Total CNY ${money(result.totalAmount)}.`);
         await loadProducts();
         await loadOrders();
     } catch (error) {
@@ -162,7 +162,7 @@ function renderProducts() {
                 <h2>${escapeHtml(product.name)}</h2>
                 <p>${escapeHtml(product.description)}</p>
                 <div class="product-meta">
-                    <span class="price">¥${money(product.price)}</span>
+                    <span class="price">CNY ${money(product.price)}</span>
                     <span class="stock">Stock ${product.stock}</span>
                 </div>
                 <button type="button" onclick="addToCart(${product.id})" ${product.stock <= 0 ? "disabled" : ""}>
@@ -184,7 +184,7 @@ function renderCart() {
     const totalQuantity = entries.reduce((sum, item) => sum + item.quantity, 0);
     const totalAmount = entries.reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0);
     cartCount.textContent = `${totalQuantity} items`;
-    cartTotal.textContent = `¥${money(totalAmount)}`;
+    cartTotal.textContent = `CNY ${money(totalAmount)}`;
 
     if (entries.length === 0) {
         cartItems.className = "cart-items empty";
@@ -197,7 +197,7 @@ function renderCart() {
         <div class="cart-row">
             <div>
                 <strong>${escapeHtml(product.name)}</strong>
-                <span>¥${money(product.price)} x ${quantity}</span>
+                <span>CNY ${money(product.price)} x ${quantity}</span>
             </div>
             <div class="cart-actions">
                 <button type="button" onclick="changeQuantity(${product.id}, -1)">-</button>
@@ -218,7 +218,7 @@ function renderOrders(orders) {
     orderList.innerHTML = orders.map(order => `
         <article class="order-row">
             <strong>#${order.id} ${escapeHtml(order.customerName)}</strong>
-            <span>${order.items.length} product types · ¥${money(order.totalAmount)}</span>
+            <span>${order.items.length} product types - CNY ${money(order.totalAmount)}</span>
             <small>${escapeHtml(order.address)}</small>
         </article>
     `).join("");

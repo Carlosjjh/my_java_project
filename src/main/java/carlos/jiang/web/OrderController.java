@@ -5,6 +5,8 @@ import carlos.jiang.service.AuthService;
 import carlos.jiang.service.OrderService;
 import carlos.jiang.web.dto.CreateOrderRequest;
 import carlos.jiang.web.dto.OrderResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Orders", description = "Authenticated order APIs")
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
@@ -25,12 +28,14 @@ public class OrderController {
         this.authService = authService;
     }
 
+    @Operation(summary = "List current user's orders")
     @GetMapping
     public List<OrderResponse> findAll(HttpSession session) {
         AppUser user = authService.currentUser(session);
         return orderService.findOrdersByUser(user).stream().map(OrderResponse::from).toList();
     }
 
+    @Operation(summary = "Create an order for the current user")
     @PostMapping
     public OrderResponse create(@Valid @RequestBody CreateOrderRequest request, HttpSession session) {
         AppUser user = authService.currentUser(session);
