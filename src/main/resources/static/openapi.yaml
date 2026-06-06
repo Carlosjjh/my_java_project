@@ -17,6 +17,8 @@ tags:
     description: Product browsing APIs
   - name: Orders
     description: Authenticated order APIs
+  - name: Admin Order Insights
+    description: Operational order analysis APIs
 paths:
   /api/auth/register:
     post:
@@ -235,6 +237,61 @@ paths:
           description: Login required
         "403":
           description: Blocked by meta-tag behavior filter
+  /api/admin/order-insights:
+    get:
+      tags:
+        - Admin Order Insights
+      summary: Analyze orders by date range and product sales
+      operationId: analyzeOrderInsights
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: Start date, inclusive. Defaults to 6 days before `to`.
+          schema:
+            type: string
+            format: date
+            example: "2026-05-01"
+        - name: to
+          in: query
+          required: false
+          description: End date, inclusive. Defaults to today.
+          schema:
+            type: string
+            format: date
+            example: "2026-05-07"
+        - name: minAmount
+          in: query
+          required: false
+          description: Keep only orders whose total amount is greater than or equal to this value.
+          schema:
+            type: number
+            format: decimal
+            minimum: 0
+            example: 100.00
+        - name: topLimit
+          in: query
+          required: false
+          description: Maximum number of top products to return.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+            default: 5
+            example: 5
+      responses:
+        "200":
+          description: Aggregated order operation metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderInsightsResponse'
+        "400":
+          description: Invalid query parameters
+        "401":
+          description: Login required
 components:
   securitySchemes:
     sessionCookie:
@@ -414,6 +471,79 @@ components:
           type: number
           format: decimal
           example: 119.80
+    OrderInsightsResponse:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date
+          example: "2026-05-01"
+        to:
+          type: string
+          format: date
+          example: "2026-05-07"
+        orderCount:
+          type: integer
+          format: int64
+          example: 12
+        totalSales:
+          type: number
+          format: decimal
+          example: 2388.50
+        averageOrderValue:
+          type: number
+          format: decimal
+          example: 199.04
+        topProducts:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopProductResponse'
+        recentOrders:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentOrderSummaryResponse'
+    TopProductResponse:
+      type: object
+      properties:
+        productId:
+          type: integer
+          format: int64
+          example: 2
+        productName:
+          type: string
+          example: City Backpack
+        quantity:
+          type: integer
+          format: int64
+          example: 8
+        sales:
+          type: number
+          format: decimal
+          example: 1592.00
+    RecentOrderSummaryResponse:
+      type: object
+      properties:
+        orderId:
+          type: integer
+          format: int64
+          example: 10
+        account:
+          type: string
+          example: carlos001
+        customerName:
+          type: string
+          example: Zhang San
+        totalAmount:
+          type: number
+          format: decimal
+          example: 398.00
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-05-07T10:30:00"
+        itemCount:
+          type: integer
+          example: 3
     MessageResponse:
       type: object
       properties:

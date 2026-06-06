@@ -28,6 +28,7 @@ public class LoginRequiredFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
         return !path.startsWith("/api/orders")
+                && !path.startsWith("/api/admin")
                 && !("PUT".equalsIgnoreCase(method) && "/api/auth/profile".equals(path))
                 && !("POST".equalsIgnoreCase(method) && "/api/auth/logout".equals(path));
     }
